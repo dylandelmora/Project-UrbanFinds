@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,45 +11,77 @@ import {
   Alert,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ReservationHistory({ navigation }) {
-  const [reservations] = useState([
-    {
-      id: 1,
-      name: "Tomoro Coffee",
-      address: "Jl. Melati Indah No 25, Jakarta Pusat",
-      price: "Rp240.000",
-      image: require("../../assets/Antarakata.png"), 
-    },
-    {
-        id: 2,
-        name: "Golden PIK Restaurant",
-        address: "Jl. PIK Indah No 36, Jakarta Barat",
-        price: "Rp320.000",
-        image: require("../../assets/Golden.png"), 
-      },
-
-      {
-        id: 3,
-        name: "123 Billiard",
-        address: "Jl. Soeharto Hatta No. 46 , Jakarta Timur",
-        price: "Rp50.000",
-        image: require("../../assets/Billiard.png"), 
-      },
-   
-  ]);
-
+  const [reservations, setReservations] = useState([]);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewText, setReviewText] = useState("");
+  const [rating, setRating] = useState(""); // Tambahkan state untuk rating
+  const [userId, setUserId] = useState(null);
 
-  const handleReviewSubmit = () => {
-    Alert.alert(
-      "Review Submitted",
-      `Thank you for reviewing ${selectedReservation?.name}!`
-    );
-    setReviewModalVisible(false);
-    setReviewText("");
+  useEffect(() => {
+    const fetchUserIdAndReservations = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+
+        if (!storedUserId) {
+          Alert.alert("Error", "User ID tidak ditemukan.");
+          navigation.navigate("Login");
+          return;
+        }
+        setUserId(storedUserId);
+
+        const response = await axios.get(`http://192.168.1.8:4001/api/auth/reservations/${storedUserId}`);
+        setReservations(response.data);
+      } catch (error) {
+        console.error("Error fetching reservations:", error.message);
+        Alert.alert("Error", "Terjadi kesalahan saat mengambil data reservasi.");
+      }
+    };
+
+    fetchUserIdAndReservations();
+  }, [navigation]);
+
+  const handleReviewSubmit = async () => {
+    if (!reviewText.trim() || !rating) {
+      Alert.alert("Error", "Rating dan review tidak boleh kosong.");
+      return;
+    }
+
+    const parsedRating = parseFloat(rating);
+    if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      Alert.alert("Error", "Rating harus berupa angka antara 1.0 hingga 5.0.");
+      return;
+    }
+
+    const reviewData = {
+      customerId: userId,
+      venueId: selectedReservation.venueId,
+      rating: parsedRating,
+      reviewDescription: reviewText.trim(),
+    };
+
+    console.log("Review Data:", reviewData); // Debugging
+
+    try {
+      const response = await axios.post(
+        "http://192.168.1.8:4001/api/auth/addReview",
+        reviewData
+      );
+
+      if (response.status === 201) {
+        Alert.alert("Success", `Terima kasih atas review untuk ${selectedReservation.venueName}!`);
+        setReviewModalVisible(false);
+        setReviewText("");
+        setRating(""); // Reset rating
+      }
+    } catch (error) {
+      console.error("Error adding review:", error.response?.data || error.message);
+      Alert.alert("Error", error.response?.data?.message || "Terjadi kesalahan saat mengirimkan review.");
+    }
   };
 
   return (
@@ -63,27 +95,38 @@ export default function ReservationHistory({ navigation }) {
       <Text style={styles.title}>Reservation History</Text>
       <ScrollView contentContainerStyle={styles.reservationContainer}>
         {reservations.map((item) => (
-          <View key={item.id} style={styles.card}>
+          <View key={item.reservationId} style={styles.card}>
             <TouchableOpacity>
-              <Image source={item.image} style={styles.cardImage} />
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardSubtitle}>{item.address}</Text>
-              <Text style={styles.cardPrice}>{item.price}</Text>
+              {item.venueImage ? (
+                <Image
+                  source={{ uri: `http://192.168.1.8:4001${item.venueImage}` }}
+                  style={styles.cardImage}
+                  onError={() => console.log("Error loading image")}
+                />
+              ) : (
+                <Text style={styles.noImageText}>No image available</Text>
+              )}
+              <Text style={styles.cardTitle}>{item.venueName}</Text>
+              <Text style={styles.cardSubtitle}>{item.venueDescription}</Text>
+              <Text style={styles.cardSubtitle}>Reservation Date : {item.reservationDate}</Text>
+              <Text style={styles.cardSubtitle}>Reservation Time : {item.reservationTime}</Text>
+              <Text style={styles.cardSubtitle}>Reservation Status : {item.reservationStatus}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.reviewButton}
               onPress={() => {
+                console.log("Selected Reservation:", item); 
                 setSelectedReservation(item);
                 setReviewModalVisible(true);
               }}
             >
               <Text style={styles.reviewButtonText}>Give Review</Text>
             </TouchableOpacity>
+
           </View>
         ))}
       </ScrollView>
 
-      
       <Modal
         animationType="slide"
         transparent={true}
@@ -93,8 +136,16 @@ export default function ReservationHistory({ navigation }) {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Review {selectedReservation?.name}
+              Review {selectedReservation?.venueName}
             </Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter rating (1-5)"
+              placeholderTextColor="#aaa"
+              keyboardType="numeric"
+              value={rating}
+              onChangeText={setRating}
+            />
             <TextInput
               style={styles.textInput}
               placeholder="Write your review here..."
@@ -135,6 +186,7 @@ const styles = StyleSheet.create({
     top: 50,
     left: 20,
     zIndex: 1,
+    marginTop: 15,
   },
   title: {
     color: "#fff",
@@ -158,6 +210,12 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 10,
   },
+  noImageText: {
+    color: "#fff",
+    fontSize: 16,
+    textAlign: "center",
+    marginVertical: 10,
+  },
   cardTitle: {
     color: "#fff",
     fontSize: 18,
@@ -169,12 +227,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 5,
   },
-  cardPrice: {
-    color: "#FFA500",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
+  
   reviewButton: {
     backgroundColor: "#FFA500",
     paddingVertical: 10,

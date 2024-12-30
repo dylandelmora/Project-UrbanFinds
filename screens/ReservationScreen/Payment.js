@@ -1,17 +1,103 @@
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import React, { useState } from 'react';
 
-export default function Payment({ navigation }) {
+export default function Payment({ navigation, route }) {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const cartItems = route.params?.cartItems || [];
+  const totalPrice = route.params?.totalPrice || 0;
+  const [reservationId, setReservationId] = useState(null);
 
-  const handlePayment = () => {
-    setPaymentCompleted(true); 
-    setTimeout(() => {
-      setPaymentCompleted(false);
-      navigation.navigate('Home'); 
-    }, 2000); 
+  // Fetch userId from AsyncStorage
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (!storedUserId) {
+          Alert.alert('Error', 'User ID tidak ditemukan.');
+          navigation.navigate('Login');
+          return;
+        }
+        setUserId(storedUserId);
+      } catch (error) {
+        console.error('Error fetching userId:', error);
+      }
+    };
+
+    const fetchReservationId = async () => {
+      try {
+        const storedReservationId = await AsyncStorage.getItem('reservationId');
+        if (!storedReservationId) {
+          console.error('Reservation ID not found.');
+          return;
+        }
+        setReservationId(storedReservationId); // Set reservationId
+      } catch (error) {
+        console.error('Error fetching reservationId:', error);
+      }
+    };
+
+    fetchUserId();
+    fetchReservationId();
+  }, []);
+
+  const handlePayment = async () => {
+    if (!userId || !reservationId) {
+      console.error('User ID or Reservation ID is missing');
+      return;
+    }
+  
+    if (cartItems.length === 0 || !cartItems[0]?.quantity) {
+      console.error('Quantity is missing');
+      return;
+    }
+  
+    const transactionData = cartItems.map(item => {
+      // Validate price and quantity before calculating
+      if (isNaN(item.menuPrice) || item.menuPrice <= 0) {
+        console.error('Invalid menuPrice for item:', item);
+        return null; // Skip this item if price is invalid
+      }
+      if (isNaN(item.quantity) || item.quantity <= 0) {
+        console.error('Invalid quantity for item:', item);
+        return null; // Skip this item if quantity is invalid
+      }
+  
+      return {
+        amount: item.menuPrice * item.quantity,  // Correct price calculation
+        customerId: userId,
+        quantity: item.quantity,
+        reservationId: reservationId,
+        transactionStatus: 'Paid',
+      };
+    }).filter(item => item !== null); // Remove invalid items
+  
+    if (transactionData.length === 0) {
+      console.error('All items are invalid. Cannot proceed with payment.');
+      return;
+    }
+  
+    console.log('Transaction Data:', transactionData);
+  
+    try {
+      const response = await axios.post('http://192.168.1.8:4001/api/auth/addTransaction', { transactions: transactionData });
+  
+      if (response.status === 201) {
+        setPaymentCompleted(true);
+        setTimeout(() => {
+          setPaymentCompleted(false);
+          navigation.navigate('Home');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error saat mengirim transaksi:', error.message);
+      Alert.alert('Error', 'Terjadi kesalahan saat melakukan pembayaran.');
+    }
   };
+  
 
   return (
     <View style={styles.container}>
@@ -19,24 +105,13 @@ export default function Payment({ navigation }) {
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
-      <Image
-        source={require('../../assets/Qris.png')} 
-        style={styles.cardImage}
-      />
 
-      <TouchableOpacity
-        style={styles.paymentButton}
-        onPress={handlePayment}
-      >
+      <Image source={require('../../assets/Qris.png')} style={styles.cardImage} />
+      <TouchableOpacity style={styles.paymentButton} onPress={handlePayment}>
         <Text style={styles.paymentButtonText}>Pay With Qris</Text>
       </TouchableOpacity>
 
-      
-      <Modal
-        transparent={true}
-        visible={paymentCompleted}
-        animationType="fade"
-      >
+      <Modal transparent={true} visible={paymentCompleted} animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalText}>Payment Completed</Text>
@@ -60,6 +135,7 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     alignSelf: 'center',
     marginTop: 20,
+    borderRadius: 20,
   },
   backButton: {
     position: 'absolute',
@@ -74,15 +150,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 35,
-  },
-  card: {
-    backgroundColor: '#2A3E55',
-    borderRadius: 8,
-    marginBottom: 15,
-    overflow: 'hidden',
-    alignContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
   },
   paymentButton: {
     backgroundColor: '#FFA500',

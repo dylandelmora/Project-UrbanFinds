@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -6,27 +7,30 @@ export default function ReservationCart({ route, navigation }) {
   const cartItems = route.params?.cartItems || []; 
 
 
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalPrice = cartItems.reduce((sum, item) => sum + item.menuPrice * item.quantity, 0);
 
   return (
     <View style={styles.container}>
-     
+      {/* Tombol kembali */}
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
 
-     
+      {/* Judul */}
       <Text style={styles.title}>Menu Details</Text>
 
-      
+      {/* Menampilkan cart */}
       <ScrollView contentContainerStyle={styles.cartContainer}>
         {cartItems.length > 0 ? (
           cartItems.map((item, index) => (
             <View key={index} style={styles.cartItem}>
-              <Image source={item.image} style={styles.itemImage} />
+              <Image 
+                source={{ uri: `http://192.168.1.8:4001${item.menuImage}` }} 
+                style={styles.itemImage} 
+              />
               <View style={styles.itemDetails}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>Rp {item.price.toLocaleString()}</Text>
+                <Text style={styles.itemName}>{item.menuName} </Text>
+                <Text style={styles.itemPrice}>Rp {item.menuPrice.toLocaleString()}</Text>
                 <Text style={styles.itemQuantity}>Quantity: {item.quantity}</Text>
               </View>
             </View>
@@ -36,7 +40,7 @@ export default function ReservationCart({ route, navigation }) {
         )}
       </ScrollView>
 
-     
+      {/* Total harga */}
       {cartItems.length > 0 && (
         <View style={styles.totalContainer}>
           <Text style={styles.totalText}>Total Price:</Text>
@@ -44,11 +48,11 @@ export default function ReservationCart({ route, navigation }) {
         </View>
       )}
 
-     
+      {/* Tombol pembayaran */}
       {cartItems.length > 0 && (
         <TouchableOpacity
           style={styles.paymentButton}
-          onPress={() => navigation.navigate('Payment', { totalPrice })}
+          onPress={() => navigation.navigate('Payment', { cartItems, totalPrice })}  
         >
           <Text style={styles.paymentButtonText}>Pay With Qris</Text>
         </TouchableOpacity>

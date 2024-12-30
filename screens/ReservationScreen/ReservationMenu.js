@@ -1,24 +1,29 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal, Animated } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import axios from 'axios';
 
 export default function ReservationMenu({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [cartItems, setCartItems] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
   const scaleValue = useRef(new Animated.Value(1)).current;
 
-  const items = [
-    { id: 1, name: 'Coffee Latte', price: 25000, image: require('../../assets/Menu1.png') },
-    { id: 2, name: 'Milo Dinosarawr', price: 15000, image: require('../../assets/Menu2.png') },
-    { id: 3, name: 'Chips Cihuy', price: 15000, image: require('../../assets/Menu3.png') },
-    { id: 4, name: 'Matcha Platter', price: 30000, image: require('../../assets/Menu4.png') },
-    { id: 5, name: 'Cheesecake', price: 45000, image: require('../../assets/Menu5.png') },
-    { id: 6, name: 'Pasta Alfredo', price: 55000, image: require('../../assets/Menu6.png') },
-    { id: 7, name: 'Coffee Americano', price: 20000, image: require('../../assets/Menu1.png') },
-    { id: 8, name: 'Milo Macchiato', price: 20000, image: require('../../assets/Menu2.png') },
-  ];
+  // Fetch menu items from the server
+  useEffect(() => {
+    const fetchMenu = async () => {
+      try {
+        const response = await axios.get('http://192.168.1.8:4001/api/auth/menu');
+        setMenuItems(response.data);
+      } catch (error) {
+        console.error('Error fetching menu:', error.message);
+      }
+    };
+    
+    fetchMenu();
+  }, []);
 
   const handleSelectItem = (item) => {
     setSelectedItem(item);
@@ -62,14 +67,15 @@ export default function ReservationMenu({ navigation }) {
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={styles.menuContainer}>
-        {items.map((item) => (
+        {menuItems.map((item) => (
           <TouchableOpacity
-            key={item.id}
+            key={item.menuId}
             style={styles.menuCard}
             onPress={() => handleSelectItem(item)}
           >
-            <Image source={item.image} style={styles.menuImage} />
+            <Image source={{ uri: `http://192.168.1.8:4001${item.menuImage}` }} style={styles.menuImage} />
           </TouchableOpacity>
+
         ))}
       </ScrollView>
 
@@ -82,8 +88,8 @@ export default function ReservationMenu({ navigation }) {
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{selectedItem.name}</Text>
-              <Text style={styles.modalPrice}>Rp {selectedItem.price.toLocaleString()}</Text>
+              <Text style={styles.modalTitle}>{selectedItem.menuName}</Text>
+              <Text style={styles.modalPrice}>Rp {selectedItem.menuPrice.toLocaleString()}</Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
                   style={styles.quantityButton}
@@ -112,6 +118,9 @@ export default function ReservationMenu({ navigation }) {
   );
 }
 
+
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -136,6 +145,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginLeft: 110,
   },
   cartButton: {
     position: 'relative',

@@ -114,9 +114,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   categoryImage: {
-    width: '100%',
+    width: '95%',
     height: 120,
     borderRadius: 8,
+    marginTop: 10,
+    marginLeft : 5,
+    marginRight : 5,
   },
   categoryTitle: {
     color: '#fff',

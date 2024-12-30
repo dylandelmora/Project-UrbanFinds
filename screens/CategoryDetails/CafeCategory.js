@@ -1,9 +1,28 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
 
 export default function CafeCategory({ navigation }) {
+  const [cafes, setCafes] = useState([]); 
+  const [searchTerm, setSearchTerm] = useState(''); 
+
+  // Fungsi untuk mengambil data dari API
+  const fetchCafes = async () => {
+    try {
+      const response = await axios.get('http://192.168.1.8:4001/api/auth/venues'); 
+      const filteredCafes = response.data.filter((item) => item.venueType === 'Cafe'); 
+      setCafes(filteredCafes);
+    } catch (error) {
+      console.error('Error fetching cafes:', error.message);
+    }
+  };
+
+  
+  useEffect(() => {
+    fetchCafes();
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -11,38 +30,41 @@ export default function CafeCategory({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Restaurant</Text>
+          <Text style={styles.headerTitle}>Cafe</Text>
         </View>
 
-       
         <TextInput
           style={styles.searchInput}
           placeholder="Search here"
           placeholderTextColor="#ccc"
+          value={searchTerm}
+          onChangeText={(text) => setSearchTerm(text)}
         />
       </View>
 
       <ScrollView style={styles.list}>
-        {[...Array(5)].map((_, index) => (
-          <View style={styles.recommendationCard} key={index}>
-            <Image
-              source={require('../../assets/Antarakata.png')}  
-              style={styles.recommendationImage}
-            />
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationTitle}> Antarakata Cafe</Text>
-              <Text style={styles.recommendationDescription}>
-              Address : Jl. Melati Indah No. 25, Kelurahan Menteng, Kecamatan Menteng, Jakarta Pusat, 10310
-              </Text>
-              <Text style = {styles.recommendationDescription}>
-                Open Hours : 10:00 - 22:00
-              </Text>
-              <Text style= {styles.recommendationDescription}>
-                Rating : 4.8 / 5.0
-              </Text>
+        {cafes
+          .filter((cafe) =>
+            cafe.venueName.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+          .map((cafe) => (
+            <View style={styles.recommendationCard} key={cafe.venueId}>
+              <Image
+                source={{ uri: `http://192.168.1.8:4001${cafe.venueImage}` }}
+                style={styles.recommendationImage}
+              />
+              <View style={styles.recommendationContent}>
+                <Text style={styles.recommendationTitle}>{cafe.venueName}</Text>
+                <Text style={styles.recommendationDescription}>
+                  Address: {cafe.venueAddress}
+                </Text>
+                <Text style={styles.recommendationDescription}>
+                  Open Hours: {cafe.openTime} - {cafe.closeTime}
+                </Text>
+                
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
       </ScrollView>
     </View>
   );
@@ -59,12 +81,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTop: {
-    flexDirection: 'row',  
-    justifyContent: 'space-between',  
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   backButton: {
-    padding: 10,  
+    padding: 10,
   },
   headerTitle: {
     color: '#fff',
@@ -73,13 +95,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,  
+    flex: 1,
   },
   searchInput: {
     backgroundColor: '#2A3E55',
     color: '#fff',
-    padding: 12,  
-    fontSize: 16,  
+    padding: 12,
+    fontSize: 16,
     borderRadius: 8,
     marginTop: 10,
     width: '100%',
@@ -119,6 +141,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 10,
   },
- 
- 
 });

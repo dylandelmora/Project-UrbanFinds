@@ -1,9 +1,28 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
 
 export default function Billiard({ navigation }) {
+  const [billiards, setBilliards] = useState([]); // State untuk menyimpan data billiard
+  const [searchTerm, setSearchTerm] = useState(''); // State untuk pencarian
+
+  // Fungsi untuk mengambil data dari API
+  const fetchBilliards = async () => {
+    try {
+      const response = await axios.get('http://192.168.1.8:4001/api/auth/venues'); 
+      const filteredBilliards = response.data.filter((item) => item.venueType === 'Billiard');
+      setBilliards(filteredBilliards);
+    } catch (error) {
+      console.error('Error fetching billiards:', error.message);
+    }
+  };
+
+  // Ambil data saat komponen dirender
+  useEffect(() => {
+    fetchBilliards();
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -11,38 +30,41 @@ export default function Billiard({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Restaurant</Text>
+          <Text style={styles.headerTitle}>Billiard</Text>
         </View>
 
-       
         <TextInput
           style={styles.searchInput}
           placeholder="Search here"
           placeholderTextColor="#ccc"
+          value={searchTerm}
+          onChangeText={(text) => setSearchTerm(text)}
         />
       </View>
 
       <ScrollView style={styles.list}>
-        {[...Array(5)].map((_, index) => (
-          <View style={styles.recommendationCard} key={index}>
-            <Image
-              source={require('../../assets/Billiard.png')}  
-              style={styles.recommendationImage}
-            />
-            <View style={styles.recommendationContent}>
-              <Text style={styles.recommendationTitle}> Epic Billiard</Text>
-              <Text style={styles.recommendationDescription}>
-              Address : Jl. Melati Indah No. 25, Kelurahan Menteng, Kecamatan Menteng, Jakarta Pusat, 10310
-              </Text>
-              <Text style = {styles.recommendationDescription}>
-                Open Hours : 11:00 - 22:00
-              </Text>
-              <Text style= {styles.recommendationDescription}>
-                Rating : 4.5 / 5.0
-              </Text>
+        {billiards
+          .filter((billiard) =>
+            billiard.venueName.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+          .map((billiard) => (
+            <View style={styles.recommendationCard} key={billiard.venueId}>
+              <Image
+                source={{ uri: `http://192.168.1.8:4001${billiard.venueImage}` }}
+                style={styles.recommendationImage}
+              />
+              <View style={styles.recommendationContent}>
+                <Text style={styles.recommendationTitle}>{billiard.venueName}</Text>
+                <Text style={styles.recommendationDescription}>
+                  Address: {billiard.venueAddress}
+                </Text>
+                <Text style={styles.recommendationDescription}>
+                  Open Hours: {billiard.openTime} - {billiard.closeTime}
+                </Text>
+               
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
       </ScrollView>
     </View>
   );
@@ -59,12 +81,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTop: {
-    flexDirection: 'row',  
-    justifyContent: 'space-between',  
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   backButton: {
-    padding: 10,  
+    padding: 10,
   },
   headerTitle: {
     color: '#fff',
@@ -73,13 +95,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,  
+    flex: 1,
   },
   searchInput: {
     backgroundColor: '#2A3E55',
     color: '#fff',
-    padding: 12,  
-    fontSize: 16,  
+    padding: 12,
+    fontSize: 16,
     borderRadius: 8,
     marginTop: 10,
     width: '100%',
@@ -119,6 +141,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 10,
   },
- 
- 
 });
